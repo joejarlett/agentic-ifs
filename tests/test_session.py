@@ -8,9 +8,13 @@ import pytest
 
 from agentic_ifs import (
     BlendState,
+    BodyMap,
+    Burden,
+    BurdenType,
     Edge,
     EdgeType,
     Exile,
+    FivePs,
     Firefighter,
     Manager,
     PolarizationEdge,
@@ -20,6 +24,7 @@ from agentic_ifs import (
     Trailhead,
     TrailheadLog,
     TrailheadType,
+    UnburdeningElement,
 )
 from agentic_ifs.session import Session
 from agentic_ifs.workflow import FocusShift
@@ -188,3 +193,120 @@ class TestSessionExport:
         # Should be JSON-serialisable
         json_str = json.dumps(parts_map)
         assert json_str  # Non-empty
+
+
+class TestSessionV2Properties:
+    def test_modifiers_default_none(self) -> None:
+        session = Session()
+        assert session.modifiers is None
+
+    def test_modifiers_passed(self) -> None:
+        mods = FivePs(patience=0.9)
+        session = Session(modifiers=mods)
+        assert session.modifiers is mods
+
+    def test_body_map_default_empty(self) -> None:
+        session = Session()
+        assert isinstance(session.body_map, BodyMap)
+        assert session.body_map.markers == []
+
+    def test_body_map_passed(self) -> None:
+        bm = BodyMap()
+        session = Session(body_map=bm)
+        assert session.body_map is bm
+
+    def test_dialogue_default_none(self) -> None:
+        session = Session()
+        assert session.dialogue is None
+
+    def test_unburdening_available(self) -> None:
+        session = Session()
+        assert session.unburdening is not None
+
+
+class TestSessionUnburdening:
+    def test_full_unburdening_via_session(self) -> None:
+        session = Session(initial_self_energy=0.8)
+        exile = Exile(
+            narrative="abandoned child",
+            age=5,
+            intent="hold pain",
+            emotional_charge=0.9,
+            burden=Burden(
+                burden_type=BurdenType.PERSONAL,
+                origin="Age 5, school rejection",
+                content="I am not wanted",
+            ),
+        )
+        session.add_part(exile)
+
+        r1 = session.witness(exile.id)
+        assert r1.next_step is not None
+
+        r2 = session.retrieve(exile.id)
+        assert r2.next_step is not None
+
+        r3 = session.purge(exile.id, UnburdeningElement.WATER)
+        assert r3.next_step is not None
+
+        r4 = session.invite(exile.id, ["safety", "belonging"])
+        assert r4.next_step is None  # Complete
+        assert exile.burden is None
+        assert exile.invited_qualities == ["safety", "belonging"]
+
+
+class TestSessionDialogue:
+    def test_speak_as_without_provider_raises(self) -> None:
+        from uuid import uuid4
+
+        session = Session()
+        with pytest.raises(RuntimeError, match="No dialogue provider"):
+            session.speak_as(uuid4(), "hello")
+
+    def test_direct_access_without_provider_raises(self) -> None:
+        from uuid import uuid4
+
+        session = Session()
+        with pytest.raises(RuntimeError, match="No dialogue provider"):
+            session.direct_access(uuid4(), "hello")
+
+
+class TestSessionDetectPolarization:
+    def test_detect_polarization_via_session(self) -> None:
+        session = Session(initial_self_energy=0.8)
+        exile = Exile(
+            narrative="lonely child",
+            age=6,
+            intent="hold loneliness",
+            emotional_charge=0.7,
+        )
+        mgr = Manager(
+            narrative="controller",
+            age=10,
+            intent="prevent vulnerability",
+            trust_level=0.2,
+            strategies=["control"],
+            rigidity=0.8,
+        )
+        ff = Firefighter(
+            narrative="escapist",
+            age=13,
+            intent="numb the pain",
+            trust_level=0.3,
+            pain_threshold=0.5,
+            extinguishing_behaviors=["gaming"],
+        )
+        session.add_part(exile)
+        session.add_part(mgr)
+        session.add_part(ff)
+        session.add_edge(Edge(
+            source_id=mgr.id, target_id=exile.id, edge_type=EdgeType.PROTECTS,
+        ))
+        session.add_edge(Edge(
+            source_id=ff.id, target_id=exile.id, edge_type=EdgeType.PROTECTS,
+        ))
+
+        suggestions = session.detect_polarization()
+        assert len(suggestions) == 1
+        assert suggestions[0].part_a_id == mgr.id
+        assert suggestions[0].part_b_id == ff.id

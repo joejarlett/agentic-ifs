@@ -143,6 +143,31 @@ class ProtectionGraph(BaseModel):
         """Return all declared polarization relationships."""
         return list(self.polarization_edges)
 
+    def get_shared_exiles(self, part_a_id: UUID, part_b_id: UUID) -> list[Exile]:
+        """Return Exiles protected by both ``part_a`` and ``part_b``.
+
+        IFS: When two Protectors guard the same Exile, they are more
+        likely to be polarized — each escalating its strategy to keep
+        the Exile's pain contained.
+
+        Used by ``detect_polarization()`` to identify potential pairs.
+        """
+        a_targets = {
+            e.target_id for e in self.edges
+            if e.source_id == part_a_id and e.edge_type == EdgeType.PROTECTS
+        }
+        b_targets = {
+            e.target_id for e in self.edges
+            if e.source_id == part_b_id and e.edge_type == EdgeType.PROTECTS
+        }
+        shared_ids = a_targets & b_targets
+        exiles: list[Exile] = [
+            self.nodes[pid]  # type: ignore[misc]
+            for pid in shared_ids
+            if pid in self.nodes and isinstance(self.nodes[pid], Exile)
+        ]
+        return exiles
+
     def to_json(self) -> dict[str, Any]:
         """Export the Parts Map as a JSON-serialisable dict.
 

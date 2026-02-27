@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 
 from .dynamics import COMPASSION_THRESHOLD
 from .graph import ProtectionGraph
+from .modifiers import FivePs
 from .self_system import LogEntry, SelfSystem
 
 
@@ -173,6 +174,11 @@ class SixFsStateMachine:
     negatively toward the target). That Part must be unblended first.
     This recursive check prevents bypassing — it ensures Self is
     genuinely present before engaging.
+
+    V2: The optional ``modifiers`` parameter (``FivePs``) tunes the
+    workflow — patience lowers the compassion threshold, presence
+    amplifies effective Self-energy, and persistence/playfulness
+    affect trust increments in the befriend step.
     """
 
     def __init__(
@@ -180,10 +186,12 @@ class SixFsStateMachine:
         graph: ProtectionGraph,
         self_system: SelfSystem,
         log: TrailheadLog,
+        modifiers: FivePs | None = None,
     ) -> None:
         self.graph = graph
         self.self_system = self_system
         self.log = log
+        self.modifiers = modifiers
         self._current_step: SixFsStep | None = None
         self._target_part_id: UUID | None = None
 
@@ -296,13 +304,27 @@ class SixFsStateMachine:
         If ``self_energy > COMPASSION_THRESHOLD``: proceed to Befriend.
         If ``self_energy <= COMPASSION_THRESHOLD``: return
         ``unblend_required`` with the most blended Part's ID.
+
+        V2: The 5 Ps modifiers affect this gate — ``patience`` lowers
+        the threshold and ``presence`` amplifies effective Self-energy.
         """
         if part_id not in self.graph.nodes:
             raise ValueError(f"Part {part_id} not in graph")
 
         self._current_step = SixFsStep.FEEL_TOWARD
 
-        if self.self_system.self_energy > COMPASSION_THRESHOLD:
+        if self.modifiers:
+            effective_energy = self.modifiers.effective_self_energy(
+                self.self_system.self_energy
+            )
+            effective_threshold = self.modifiers.effective_threshold(
+                COMPASSION_THRESHOLD
+            )
+        else:
+            effective_energy = self.self_system.self_energy
+            effective_threshold = COMPASSION_THRESHOLD
+
+        if effective_energy > effective_threshold:
             # Self is present — proceed to Befriend
             self.self_system.session_log.append(
                 LogEntry(
@@ -349,6 +371,10 @@ class SixFsStateMachine:
         Update trust. Let the Part know that Self sees it and
         values its intention.
 
+        V2: ``persistence`` scales the trust increment and ``playfulness``
+        adds variance — modelling the IFS observation that persistent,
+        playful engagement builds trust most effectively.
+
         Computational equivalent: UpdateTrust(PartID, +Increment).
         """
         if part_id not in self.graph.nodes:
@@ -357,8 +383,12 @@ class SixFsStateMachine:
         self._current_step = SixFsStep.BEFRIEND
         part = self.graph.nodes[part_id]
 
-        # Increment trust toward Self
-        new_trust = min(part.trust_level + 0.1, 1.0)
+        # Increment trust toward Self (V2: scaled by 5 Ps modifiers)
+        if self.modifiers:
+            increment = self.modifiers.trust_increment(base_increment=0.1)
+        else:
+            increment = 0.1
+        new_trust = min(part.trust_level + increment, 1.0)
         part.trust_level = new_trust
 
         self.self_system.session_log.append(

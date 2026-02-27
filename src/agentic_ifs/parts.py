@@ -113,6 +113,18 @@ class Burden(BaseModel):
         le=1.0,
         description="Stored intensity of the burden (0.0–1.0)",
     )
+    lineage: list[str] = Field(
+        default_factory=list,
+        description="Lineage chain for legacy burdens, e.g. ['grandmother', 'mother', 'self']",
+    )
+
+    @property
+    def generation_depth(self) -> int:
+        """Number of generations in the lineage chain.
+
+        Returns 0 if no lineage is specified (personal burden).
+        """
+        return len(self.lineage)
 
 
 # ---------------------------------------------------------------------------
@@ -238,6 +250,13 @@ class Exile(IPart):
     is_visible: bool = Field(
         default=False,
         description="Exiles are hidden by default",
+    )
+    invited_qualities: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Qualities invited in after unburdening (V2). "
+            "e.g. ['playfulness', 'curiosity', 'lightness']"
+        ),
     )
     state: ExileState = ExileState.ISOLATED
 

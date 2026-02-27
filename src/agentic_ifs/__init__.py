@@ -21,7 +21,7 @@ Quick start::
     ))
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # --- Parts and enums ---
 from .parts import (
@@ -38,13 +38,24 @@ from .parts import (
 )
 
 # --- Self system ---
-from .self_system import BlendState, LogEntry, SelfSystem
+from .self_system import (
+    SELF_QUALITIES,
+    BlendState,
+    LogEntry,
+    SelfEnergyVector,
+    SelfSystem,
+)
 
 # --- Graph ---
 from .graph import Edge, EdgeType, PolarizationEdge, ProtectionGraph
 
 # --- Dynamics ---
-from .dynamics import COMPASSION_THRESHOLD, is_self_led, self_preservation_ratio
+from .dynamics import (
+    COMPASSION_THRESHOLD,
+    detect_polarization,
+    is_self_led,
+    self_preservation_ratio,
+)
 
 # --- Workflow ---
 from .workflow import (
@@ -55,6 +66,29 @@ from .workflow import (
     Trailhead,
     TrailheadLog,
     TrailheadType,
+)
+
+# --- Unburdening (V2) ---
+from .unburdening import (
+    UnburdeningElement,
+    UnburdeningResult,
+    UnburdeningStateMachine,
+    UnburdeningStep,
+)
+
+# --- Modifiers (V2) ---
+from .modifiers import FivePs
+
+# --- Somatic (V2) ---
+from .somatic import BodyLocation, BodyMap, BodyRegion, BodySide, SomaticMarker
+
+# --- Dialogue (V2) ---
+from .dialogue import (
+    DialogueContext,
+    DialogueMessage,
+    DialogueProvider,
+    PartDialogue,
+    build_part_system_prompt,
 )
 
 # --- Session ---
@@ -74,6 +108,8 @@ __all__ = [
     "PartUnion",
     # Self system
     "SelfSystem",
+    "SelfEnergyVector",
+    "SELF_QUALITIES",
     "BlendState",
     "LogEntry",
     # Graph
@@ -85,6 +121,7 @@ __all__ = [
     "COMPASSION_THRESHOLD",
     "self_preservation_ratio",
     "is_self_led",
+    "detect_polarization",
     # Workflow
     "SixFsStateMachine",
     "SixFsStep",
@@ -93,6 +130,25 @@ __all__ = [
     "TrailheadLog",
     "TrailheadType",
     "FocusShift",
+    # Unburdening
+    "UnburdeningStep",
+    "UnburdeningElement",
+    "UnburdeningResult",
+    "UnburdeningStateMachine",
+    # Modifiers
+    "FivePs",
+    # Somatic
+    "BodyRegion",
+    "BodySide",
+    "BodyLocation",
+    "SomaticMarker",
+    "BodyMap",
+    # Dialogue
+    "DialogueProvider",
+    "DialogueContext",
+    "DialogueMessage",
+    "PartDialogue",
+    "build_part_system_prompt",
     # Session
     "Session",
 ]

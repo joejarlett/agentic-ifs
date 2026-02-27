@@ -69,7 +69,7 @@ IPart (Abstract Base)
 | 6Fs workflow | Sequential State Machine (the "game loop") |
 | Parts Map | AdjacencyMatrix / Force-directed graph JSON |
 
-### Key Architectural Decisions (V1)
+### Key Architectural Decisions
 
 | Decision | Resolution |
 |---|---|
@@ -77,21 +77,25 @@ IPart (Abstract Base)
 | SelfSystem model | Two fields: `self_potential=1.0` (constant) + `self_energy=0.3` (dynamic) |
 | Self-energy default | 0.3 — typical person arriving at session with Managers running |
 | Occlusion formula | `self_energy = self_potential * (1 - max_blend)` |
-| Polarization | Explicit `PolarizationEdge` declaration only. Auto-detect is V2 |
+| Polarization | Explicit `PolarizationEdge` + auto-detect heuristic (V2) |
 | Strategy types | `list[str]` for triggers, strategies, behaviors. LLM-friendly |
 | Pydantic serialisation | `PartUnion` discriminated union via `part_type: Literal[...]` on each subclass |
 | Blend/unblend location | Instance methods on `SelfSystem` only — not duplicated in `dynamics.py` |
 | Timestamps | `datetime.now(timezone.utc)` everywhere (not deprecated `utcnow`) |
+| 8C Self-energy | Vector of 8 Cs; scalar `self_energy` is backward-compatible computed mean |
+| DialogueProvider | `typing.Protocol`, not ABC — duck typing, no inheritance required |
+| LLM providers | Optional extras (`pip install ".[google]"` or `".[anthropic]"`) — core stays dependency-free |
+| Unburdening | Separate state machine parallel to 6 Fs; keeps workflow.py focused on Protectors |
 
 ---
 
-## V1 Status — "Stabilization Release"
+## Current Status — V2 "Healer Release"
 
-**Status: V1 implemented.** All modules, tests, and verification passing (96 tests, mypy clean, ruff clean).
+**Status: V2 implemented.** 199 tests, mypy clean, ruff clean.
 
-V1 focuses on **Protector work** (Managers and Firefighters). This is the stable foundation; Exile/unburdening work is V2.
+V1 ("Stabilization Release") covered **Protector work** — the 6 Fs, blending, Parts Map. V2 adds the **healing pipeline** and **LLM Part dialogue**.
 
-**V1 includes:**
+**V1 (complete):**
 - `IPart`, `Manager`, `Firefighter`, `Exile` classes with discriminated union
 - `SelfSystem` with two-variable Self model (potential + energy)
 - Protection graph: Protects/Polarized/Allied edges
@@ -101,15 +105,15 @@ V1 focuses on **Protector work** (Managers and Firefighters). This is the stable
 - Parts Map as JSON export (graph data for D3.js, Gephi, Cytoscape)
 - `Session` convenience facade
 
-**V1 excludes (V2 scope):**
-- Unburdening pipeline (Witnessing → Retrieval → Purging → Invitation)
-- Legacy Burden lineage data structures
-- Somatic integration / BodyMap coordinates
-- Direct Access mode (RPC to Part bypassing Self)
-- LLM simulation of Part dialogue
-- 8C Self-energy vector breakdown
-- 3D/visual Parts Map rendering
-- Auto-detect polarization
+**V2 (complete):**
+- **8C Self-Energy Vector** — `SelfEnergyVector` model with per-quality occlusion; scalar `self_energy` is backward-compatible mean
+- **Unburdening Pipeline** — `UnburdeningStateMachine` (Witnessing → Retrieval → Purging → Invitation → Complete)
+- **5 Ps Interaction Modifiers** — `FivePs` model tuning compassion threshold, trust increments, Self-energy checks
+- **LLM Part Dialogue** — `DialogueProvider` protocol + `PartDialogue` orchestrator; optional Gemini and Anthropic integrations
+- **Direct Access Mode** — therapist speaks directly to Part, bypassing Self-energy check
+- **Auto-Detect Polarization** — `detect_polarization()` heuristic; returns suggestions, doesn't auto-modify graph
+- **Somatic BodyMap** — `BodyMap`, `SomaticMarker`, `BodyLocation` for mapping Parts to body regions
+- **Legacy Burden Lineage** — `Burden.lineage` for inherited/ancestral burdens; `Exile.invited_qualities` for post-unburdening
 
 ---
 
@@ -133,19 +137,31 @@ agentic-ifs/
 │   └── agentic_ifs/
 │       ├── __init__.py     # Full public API surface with __all__
 │       ├── parts.py        # IPart, Manager, Firefighter, Exile, Burden, enums, PartUnion
-│       ├── self_system.py  # SelfSystem, BlendState, LogEntry (blend/unblend here)
+│       ├── self_system.py  # SelfSystem, SelfEnergyVector, BlendState, LogEntry
 │       ├── graph.py        # ProtectionGraph, Edge, EdgeType, PolarizationEdge, to_json()
-│       ├── dynamics.py     # is_self_led(), self_preservation_ratio(), COMPASSION_THRESHOLD
+│       ├── dynamics.py     # is_self_led(), self_preservation_ratio(), detect_polarization()
 │       ├── workflow.py     # SixFsStateMachine, Trailhead, TrailheadLog, FocusShift
-│       └── session.py      # Session convenience facade
+│       ├── session.py      # Session convenience facade (wires all components)
+│       ├── modifiers.py    # V2: FivePs interaction modifiers
+│       ├── unburdening.py  # V2: UnburdeningStateMachine (Exile healing pipeline)
+│       ├── somatic.py      # V2: BodyMap, SomaticMarker, BodyLocation
+│       ├── dialogue.py     # V2: DialogueProvider protocol, PartDialogue orchestrator
+│       └── integrations/   # V2: Optional LLM provider implementations
+│           ├── __init__.py
+│           ├── google.py   # GeminiDialogueProvider
+│           └── anthropic.py # AnthropicDialogueProvider
 └── tests/
-    ├── conftest.py         # Shared fixtures (manager, firefighter, exile, populated_graph)
-    ├── test_parts.py       # Part instantiation, enums, PartUnion round-trip
-    ├── test_self_system.py # Blend/unblend, recalculate, logging
-    ├── test_graph.py       # Graph operations, to_json, discriminated union
-    ├── test_dynamics.py    # is_self_led, self_preservation_ratio thresholds
-    ├── test_workflow.py    # 6 Fs happy path, feel_toward gate, TrailheadLog
-    └── test_session.py     # Session delegation, metrics, export
+    ├── conftest.py         # Shared fixtures
+    ├── test_parts.py       # Part instantiation, enums, PartUnion, lineage
+    ├── test_self_system.py # Blend/unblend, 8C vector, recalculate
+    ├── test_graph.py       # Graph operations, to_json, get_shared_exiles
+    ├── test_dynamics.py    # Metrics, thresholds, polarization detection
+    ├── test_workflow.py    # 6 Fs happy path, feel_toward gate
+    ├── test_session.py     # Session delegation, V2 wiring
+    ├── test_modifiers.py   # V2: FivePs thresholds, trust increments
+    ├── test_unburdening.py # V2: Full unburdening pipeline
+    ├── test_somatic.py     # V2: BodyMap, markers, queries
+    └── test_dialogue.py    # V2: Mock provider, speak_as, direct_access
 ```
 
 ---
@@ -162,8 +178,8 @@ agentic-ifs/
 ### For dev agents
 
 1. Python 3.11+, typed (Pydantic v2 for data models)
-2. Framework-agnostic core — **no LangGraph dependency** in V1. Pure Python simulation loop
-3. Optional LangGraph integration can be in a separate `agentic_ifs.integrations.langgraph` module
+2. Framework-agnostic core — no framework dependency. Pure Python simulation loop
+3. LLM integrations are optional extras in `agentic_ifs.integrations/` — core stays dependency-free beyond Pydantic
 4. MIT licence
 5. All public API should have docstrings that explain both the computational and IFS-theoretical meaning
 6. Tests in `tests/` using pytest
@@ -171,6 +187,8 @@ agentic-ifs/
 8. `blend()` / `unblend()` are instance methods on `SelfSystem` only — do not duplicate in `dynamics.py`
 9. Use `datetime.now(timezone.utc)` — not `datetime.utcnow()` (deprecated in 3.11+)
 10. `Exile.emotional_charge` = current activation; `Burden.emotional_charge` = stored intensity — keep docstrings clear
+11. `DialogueProvider` is a `typing.Protocol` — any object with `generate_part_response()` is valid, no inheritance
+12. `self_energy` (scalar) must always remain backward-compatible — it is the mean of the 8C vector
 
 ### For documentation agents
 

@@ -15,7 +15,8 @@ Key concepts:
 
 from __future__ import annotations
 
-from .graph import ProtectionGraph
+from .graph import PolarizationEdge, ProtectionGraph
+from .parts import Firefighter, Manager
 from .self_system import SelfSystem
 
 COMPASSION_THRESHOLD: float = 0.5
@@ -60,3 +61,78 @@ def is_self_led(self_system: SelfSystem) -> bool:
     and compassion rather than reactivity.
     """
     return self_system.self_energy > COMPASSION_THRESHOLD
+
+
+# ---------------------------------------------------------------------------
+# V2: Polarization detection
+# ---------------------------------------------------------------------------
+
+_LOW_TRUST_THRESHOLD: float = 0.4
+"""Trust level below which a Protector is considered rigidly defensive.
+
+Used by ``detect_polarization()`` as a heuristic: Parts with low trust
+in Self tend to escalate their strategies, increasing the likelihood
+of polarization with other low-trust Protectors guarding the same Exile.
+"""
+
+
+def detect_polarization(
+    graph: ProtectionGraph,
+    trust_threshold: float = _LOW_TRUST_THRESHOLD,
+) -> list[PolarizationEdge]:
+    """Suggest polarized pairs from graph structure (V2).
+
+    IFS: Polarization occurs when two Protectors (typically a Manager and
+    a Firefighter) escalate in opposition — e.g. a Perfectionist Manager
+    tightens control while a Procrastinator Firefighter shuts down harder.
+
+    This heuristic detects *potential* polarization by looking for:
+
+    1. A Manager and a Firefighter that both protect the same Exile
+    2. Both have ``trust_level`` below ``trust_threshold`` (rigid, defensive)
+
+    Returns a list of suggested ``PolarizationEdge`` objects. These are
+    **suggestions only** — the researcher should review and confirm before
+    adding them to the graph.
+
+    Parameters
+    ----------
+    graph:
+        The protection graph to analyse.
+    trust_threshold:
+        Maximum ``trust_level`` for a Protector to be considered rigid.
+        Default 0.4.
+    """
+    suggestions: list[PolarizationEdge] = []
+    already_polarized = {
+        (pe.part_a_id, pe.part_b_id) for pe in graph.polarization_edges
+    } | {
+        (pe.part_b_id, pe.part_a_id) for pe in graph.polarization_edges
+    }
+
+    managers = [
+        p for p in graph.nodes.values()
+        if isinstance(p, Manager) and p.trust_level < trust_threshold
+    ]
+    firefighters = [
+        p for p in graph.nodes.values()
+        if isinstance(p, Firefighter) and p.trust_level < trust_threshold
+    ]
+
+    for mgr in managers:
+        for ff in firefighters:
+            if (mgr.id, ff.id) in already_polarized:
+                continue
+
+            shared = graph.get_shared_exiles(mgr.id, ff.id)
+            if shared:
+                tension = 1.0 - min(mgr.trust_level, ff.trust_level)
+                suggestions.append(
+                    PolarizationEdge(
+                        part_a_id=mgr.id,
+                        part_b_id=ff.id,
+                        tension_level=round(tension, 2),
+                    )
+                )
+
+    return suggestions

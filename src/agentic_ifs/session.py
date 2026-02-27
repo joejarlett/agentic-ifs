@@ -1,8 +1,9 @@
 """Session — thin convenience facade over the composable core.
 
 A Session bundles ``ProtectionGraph``, ``SelfSystem``, ``TrailheadLog``,
-and ``SixFsStateMachine`` into a single coordinated unit. It delegates
-all operations to the underlying components — it is not a different
+``SixFsStateMachine``, and (V2) ``UnburdeningStateMachine``, ``BodyMap``,
+and ``PartDialogue`` into a single coordinated unit. It delegates all
+operations to the underlying components — it is not a different
 implementation, just an ergonomic surface.
 
 Usage::
@@ -18,6 +19,12 @@ Usage::
     result = session.find(trailhead)
     parts_map = session.export_parts_map()
 
+    # V2: unburdening
+    session.witness(exile.id)
+    session.retrieve(exile.id)
+    session.purge(exile.id, UnburdeningElement.WATER)
+    session.invite(exile.id, ["playfulness", "lightness"])
+
 IFS meaning: a Session represents a single therapeutic encounter — a
 bounded context in which Parts are engaged and the system moves toward
 greater Self-energy.
@@ -28,10 +35,18 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from .dynamics import is_self_led, self_preservation_ratio
+from .dialogue import DialogueProvider, PartDialogue
+from .dynamics import detect_polarization, is_self_led, self_preservation_ratio
 from .graph import Edge, PolarizationEdge, ProtectionGraph
+from .modifiers import FivePs
 from .parts import IPart
 from .self_system import BlendState, SelfSystem
+from .somatic import BodyMap
+from .unburdening import (
+    UnburdeningElement,
+    UnburdeningResult,
+    UnburdeningStateMachine,
+)
 from .workflow import (
     FocusShift,
     SixFsResult,
@@ -45,8 +60,8 @@ class Session:
     """Convenience wrapper for the composable core.
 
     Creates and wires ``ProtectionGraph``, ``SelfSystem``, ``TrailheadLog``,
-    and ``SixFsStateMachine`` as a coordinated unit. All methods delegate
-    to the underlying objects.
+    ``SixFsStateMachine``, and optionally ``UnburdeningStateMachine``,
+    ``BodyMap``, and ``PartDialogue`` as a coordinated unit.
 
     IFS: A Session represents a single therapeutic encounter — a bounded
     context in which Parts are engaged and the system moves toward greater
@@ -57,17 +72,49 @@ class Session:
     initial_self_energy:
         Starting ``self_energy`` value. Default 0.3 reflects a typical
         person arriving at a session with Managers already running.
+    modifiers:
+        Optional ``FivePs`` interaction modifiers for the facilitator.
+        Affects compassion threshold, trust increments, and Self-energy
+        checks in the 6 Fs workflow.
+    body_map:
+        Optional ``BodyMap`` for tracking somatic markers. If not
+        provided, a new empty BodyMap is created.
+    dialogue_provider:
+        Optional ``DialogueProvider`` for LLM-powered Part dialogue.
+        If provided, enables ``speak_as()`` and ``direct_access()``
+        methods.
     """
 
-    def __init__(self, initial_self_energy: float = 0.3) -> None:
+    def __init__(
+        self,
+        initial_self_energy: float = 0.3,
+        *,
+        modifiers: FivePs | None = None,
+        body_map: BodyMap | None = None,
+        dialogue_provider: DialogueProvider | None = None,
+    ) -> None:
         self._graph = ProtectionGraph()
         self._self_system = SelfSystem(self_energy=initial_self_energy)
         self._trailhead_log = TrailheadLog()
+        self._modifiers = modifiers
         self._workflow = SixFsStateMachine(
             graph=self._graph,
             self_system=self._self_system,
             log=self._trailhead_log,
+            modifiers=modifiers,
         )
+        self._unburdening = UnburdeningStateMachine(
+            graph=self._graph,
+            self_system=self._self_system,
+        )
+        self._body_map = body_map or BodyMap()
+        self._dialogue: PartDialogue | None = None
+        if dialogue_provider is not None:
+            self._dialogue = PartDialogue(
+                provider=dialogue_provider,
+                graph=self._graph,
+                self_system=self._self_system,
+            )
         self._focus_shifts: list[FocusShift] = []
 
     # --- Property accessors for underlying components ---
@@ -91,6 +138,26 @@ class Session:
     def workflow(self) -> SixFsStateMachine:
         """The 6 Fs state machine."""
         return self._workflow
+
+    @property
+    def modifiers(self) -> FivePs | None:
+        """The 5 Ps interaction modifiers, if configured."""
+        return self._modifiers
+
+    @property
+    def unburdening(self) -> UnburdeningStateMachine:
+        """The unburdening pipeline state machine."""
+        return self._unburdening
+
+    @property
+    def body_map(self) -> BodyMap:
+        """The session's somatic body map."""
+        return self._body_map
+
+    @property
+    def dialogue(self) -> PartDialogue | None:
+        """The Part dialogue orchestrator, if a provider was given."""
+        return self._dialogue
 
     @property
     def focus_shifts(self) -> list[FocusShift]:
@@ -147,6 +214,59 @@ class Session:
         """6 Fs Step 6: Identify the Part's worst-case scenarios."""
         return self._workflow.fear(part_id)
 
+    # --- Unburdening delegates (V2) ---
+
+    def witness(self, exile_id: UUID) -> UnburdeningResult:
+        """Unburdening Stage 1: Self witnesses the Exile's burden."""
+        return self._unburdening.witness(exile_id)
+
+    def retrieve(self, exile_id: UUID) -> UnburdeningResult:
+        """Unburdening Stage 2: Retrieve the Exile from the trauma scene."""
+        return self._unburdening.retrieve(exile_id)
+
+    def purge(
+        self, exile_id: UUID, element: UnburdeningElement,
+    ) -> UnburdeningResult:
+        """Unburdening Stage 3: Release the burden via an element."""
+        return self._unburdening.purge(exile_id, element)
+
+    def invite(
+        self, exile_id: UUID, new_qualities: list[str],
+    ) -> UnburdeningResult:
+        """Unburdening Stage 4: Exile takes on new qualities."""
+        return self._unburdening.invite(exile_id, new_qualities)
+
+    # --- Dialogue delegates (V2) ---
+
+    def speak_as(
+        self,
+        part_id: UUID,
+        facilitator_message: str,
+        current_step: str | None = None,
+    ) -> str:
+        """Generate a Part's response to a facilitator message.
+
+        Requires a ``dialogue_provider`` to have been passed at construction.
+        """
+        if self._dialogue is None:
+            raise RuntimeError(
+                "No dialogue provider configured — pass dialogue_provider "
+                "to Session() to enable Part dialogue"
+            )
+        return self._dialogue.speak_as(part_id, facilitator_message, current_step)
+
+    def direct_access(self, part_id: UUID, therapist_message: str) -> str:
+        """Generate a Part's response in Direct Access mode (bypasses Self).
+
+        Requires a ``dialogue_provider`` to have been passed at construction.
+        """
+        if self._dialogue is None:
+            raise RuntimeError(
+                "No dialogue provider configured — pass dialogue_provider "
+                "to Session() to enable Part dialogue"
+            )
+        return self._dialogue.direct_access(part_id, therapist_message)
+
     # --- U-Turn ---
 
     def record_focus_shift(self, focus_shift: FocusShift) -> None:
@@ -164,6 +284,15 @@ class Session:
     def preservation_ratio(self) -> float:
         """Ratio of Self-energy to total Part activation."""
         return self_preservation_ratio(self._self_system, self._graph)
+
+    def detect_polarization(
+        self, trust_threshold: float = 0.4,
+    ) -> list[PolarizationEdge]:
+        """Suggest polarized pairs from graph structure (V2).
+
+        Returns ``PolarizationEdge`` suggestions — not auto-added to graph.
+        """
+        return detect_polarization(self._graph, trust_threshold)
 
     # --- Export ---
 

@@ -154,6 +154,76 @@ session.unblend(perfectionist.id)
 print(session.self_system.self_energy)  # 1.0
 ```
 
+### Unburdening (V2)
+
+After Protector work (6 Fs), heal an Exile through the unburdening pipeline:
+
+```python
+from agentic_ifs import Burden, BurdenType, UnburdeningElement
+
+# An Exile carrying a burden
+wounded_child = Exile(
+    narrative="Wounded Child — carries shame from school failure",
+    age=7,
+    intent="Hold the pain so the system can function",
+    emotional_charge=0.9,
+    burden=Burden(
+        burden_type=BurdenType.PERSONAL,
+        origin="Age 7, public humiliation at school",
+        content="I am not enough",
+    ),
+)
+session.add_part(wounded_child)
+
+# Walk through the unburdening pipeline
+session.witness(wounded_child.id)                              # Self witnesses the burden
+session.retrieve(wounded_child.id)                             # Retrieve Exile from trauma scene
+session.purge(wounded_child.id, UnburdeningElement.WATER)      # Release burden via water
+session.invite(wounded_child.id, ["playfulness", "lightness"]) # Exile takes on new qualities
+
+print(wounded_child.burden)             # None — burden released
+print(wounded_child.invited_qualities)  # ["playfulness", "lightness"]
+```
+
+### LLM Part Dialogue (V2)
+
+Make Parts speak with their own voice using any LLM backend:
+
+```python
+from agentic_ifs.dialogue import DialogueProvider, PartDialogue
+
+# Use any provider — Gemini, Claude, or your own
+# Example with Anthropic (pip install "agentic-ifs[anthropic]"):
+from agentic_ifs.integrations.anthropic import AnthropicDialogueProvider
+provider = AnthropicDialogueProvider()  # reads ANTHROPIC_API_KEY from env
+
+session = Session(initial_self_energy=0.8, dialogue_provider=provider)
+session.add_part(perfectionist)
+
+# Self speaks to the Part and it responds in character
+response = session.speak_as(perfectionist.id, "What are you afraid of?")
+print(response)  # The Part responds from its own perspective
+
+# Direct Access — therapist speaks directly to Part (bypasses Self)
+response = session.direct_access(perfectionist.id, "I see you're working hard")
+```
+
+### 5 Ps Interaction Modifiers (V2)
+
+Tune the facilitator's qualities:
+
+```python
+from agentic_ifs import FivePs
+
+# A patient, persistent facilitator
+mods = FivePs(patience=0.9, persistence=0.8, playfulness=0.6)
+session = Session(initial_self_energy=0.5, modifiers=mods)
+
+# Patience lowers the compassion threshold — can work with lower Self-energy
+# Persistence increases trust increments in befriend step
+# Playfulness adds variance to trust increments
+```
+
 ### Composable core (advanced)
 
 The `Session` facade is optional. You can use the components directly:
@@ -190,22 +260,29 @@ All Parts inherit from `IPart` and use a `part_type` discriminator for correct P
 
 | Module | Key Classes | Purpose |
 |---|---|---|
-| `parts` | `Manager`, `Firefighter`, `Exile`, `Burden` | Part data models and state enums |
-| `self_system` | `SelfSystem`, `BlendState` | Self-energy, blending/unblending |
+| `parts` | `Manager`, `Firefighter`, `Exile`, `Burden` | Part data models, state enums, lineage |
+| `self_system` | `SelfSystem`, `SelfEnergyVector`, `BlendState` | 8C Self-energy vector, blending/unblending |
 | `graph` | `ProtectionGraph`, `Edge`, `PolarizationEdge` | Relationship graph and Parts Map export |
-| `dynamics` | `is_self_led()`, `self_preservation_ratio()` | System health metrics |
+| `dynamics` | `is_self_led()`, `self_preservation_ratio()`, `detect_polarization()` | System health metrics, polarization detection |
 | `workflow` | `SixFsStateMachine`, `Trailhead`, `FocusShift` | 6 Fs game loop, session entry points |
-| `session` | `Session` | Thin convenience facade |
+| `unburdening` | `UnburdeningStateMachine` | Exile healing pipeline (V2) |
+| `modifiers` | `FivePs` | Facilitator interaction modifiers (V2) |
+| `somatic` | `BodyMap`, `SomaticMarker`, `BodyLocation` | Body-based Part mapping (V2) |
+| `dialogue` | `DialogueProvider`, `PartDialogue` | LLM Part dialogue framework (V2) |
+| `integrations` | `GeminiDialogueProvider`, `AnthropicDialogueProvider` | Optional LLM backends (V2) |
+| `session` | `Session` | Convenience facade wiring all components |
 
 ---
 
-## V1 Scope — "Stabilization Release"
+## Releases
 
-V1 focuses on **Protector work** (Managers and Firefighters). Exile unburdening is V2.
+### V2 — "Healer Release" (current)
 
-**V1 includes:** Part classes with full data structures, Self-energy scalar, Protection graph, 6 Fs state machine, blending mechanics, trailhead logging, Parts Map JSON export, U-Turn as FocusShift.
+Adds the **healing pipeline** and **LLM Part dialogue**: unburdening state machine, 8C Self-energy vector, 5 Ps interaction modifiers, auto-detect polarization, somatic body map, legacy burden lineage, Direct Access mode, and framework-agnostic LLM dialogue with optional Gemini and Anthropic integrations.
 
-**Deferred to V2:** Unburdening pipeline, 8C Self-energy vector, LLM simulation of Part dialogue, auto-detect polarization, Direct Access mode, 3D Parts Map rendering.
+### V1 — "Stabilization Release"
+
+**Protector work** foundation: Part classes, Self-energy scalar, Protection graph, 6 Fs state machine, blending mechanics, trailhead logging, Parts Map JSON export, Session facade.
 
 See [spec/IFSKit-Spec.md](spec/IFSKit-Spec.md) for the full architectural specification.
 

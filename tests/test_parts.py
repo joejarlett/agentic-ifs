@@ -168,3 +168,83 @@ class TestPartUnion:
                 "age": 10,
                 "intent": "test",
             })
+
+
+# ---------------------------------------------------------------------------
+# V2: Legacy Burden Lineage
+# ---------------------------------------------------------------------------
+
+
+class TestBurdenLineage:
+    def test_burden_lineage_default(self) -> None:
+        """Burden() has empty lineage by default — backward compatible."""
+        burden = Burden(
+            burden_type=BurdenType.PERSONAL,
+            origin="Age 7, school failure",
+            content="I am not enough",
+        )
+        assert burden.lineage == []
+
+    def test_burden_lineage_populated(self) -> None:
+        """Burden with a legacy lineage chain."""
+        burden = Burden(
+            burden_type=BurdenType.LEGACY,
+            origin="Grandmother's famine trauma",
+            content="There is never enough",
+            lineage=["grandmother", "mother", "self"],
+        )
+        assert burden.lineage == ["grandmother", "mother", "self"]
+
+    def test_burden_generation_depth(self) -> None:
+        """generation_depth returns len(lineage)."""
+        burden = Burden(
+            burden_type=BurdenType.LEGACY,
+            origin="Grandmother's famine trauma",
+            content="There is never enough",
+            lineage=["grandmother", "mother", "self"],
+        )
+        assert burden.generation_depth == 3
+
+    def test_burden_generation_depth_zero(self) -> None:
+        """No lineage means generation_depth is 0 (personal burden)."""
+        burden = Burden(
+            burden_type=BurdenType.PERSONAL,
+            origin="Age 7, school failure",
+            content="I am not enough",
+        )
+        assert burden.generation_depth == 0
+
+    def test_burden_lineage_serialization(self) -> None:
+        """JSON round-trip preserves lineage."""
+        burden = Burden(
+            burden_type=BurdenType.LEGACY,
+            origin="Grandmother's famine trauma",
+            content="There is never enough",
+            lineage=["grandmother", "mother", "self"],
+        )
+        json_str = burden.model_dump_json()
+        restored = Burden.model_validate_json(json_str)
+        assert restored.lineage == ["grandmother", "mother", "self"]
+        assert restored.generation_depth == 3
+
+
+# ---------------------------------------------------------------------------
+# V2: Exile invited_qualities
+# ---------------------------------------------------------------------------
+
+
+class TestExileInvitedQualities:
+    def test_exile_invited_qualities_default(self) -> None:
+        """Exile() has empty invited_qualities by default — backward compatible."""
+        exile = Exile(narrative="test", age=5, intent="hold pain")
+        assert exile.invited_qualities == []
+
+    def test_exile_invited_qualities_populated(self) -> None:
+        """Exile with invited_qualities set."""
+        exile = Exile(
+            narrative="test",
+            age=5,
+            intent="hold pain",
+            invited_qualities=["playfulness", "curiosity"],
+        )
+        assert exile.invited_qualities == ["playfulness", "curiosity"]

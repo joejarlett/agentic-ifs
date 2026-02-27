@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentic-ifs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Internal Family Systems as multi-agent computational architecture"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -12,7 +12,7 @@ authors = [{ name = "Joe Jarlett", email = "joe@joejarlett.co.uk" }]
 requires-python = ">=3.11"
 keywords = ["ifs", "internal-family-systems", "psychology", "multi-agent", "simulation"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
@@ -37,6 +37,12 @@ notebook = [
 demo = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
+]
+google = [
+    "google-generativeai>=0.8",
+]
+anthropic = [
+    "anthropic>=0.40",
 ]
 
 [project.urls]
