@@ -246,11 +246,14 @@ class TestSessionUnburdening:
         r2 = session.retrieve(exile.id)
         assert r2.next_step is not None
 
-        r3 = session.purge(exile.id, UnburdeningElement.WATER)
+        r3 = session.reparent(exile.id, "I needed to be told I was wanted")
         assert r3.next_step is not None
 
-        r4 = session.invite(exile.id, ["safety", "belonging"])
-        assert r4.next_step is None  # Complete
+        r4 = session.purge(exile.id, UnburdeningElement.WATER)
+        assert r4.next_step is not None
+
+        r5 = session.invite(exile.id, ["safety", "belonging"])
+        assert r5.next_step is None  # Complete
         assert exile.burden is None
         assert exile.invited_qualities == ["safety", "belonging"]
 

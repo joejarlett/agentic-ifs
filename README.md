@@ -178,6 +178,7 @@ session.add_part(wounded_child)
 # Walk through the unburdening pipeline
 session.witness(wounded_child.id)                              # Self witnesses the burden
 session.retrieve(wounded_child.id)                             # Retrieve Exile from trauma scene
+session.reparent(wounded_child.id, "I needed to be told I was enough")  # Give what was needed
 session.purge(wounded_child.id, UnburdeningElement.WATER)      # Release burden via water
 session.invite(wounded_child.id, ["playfulness", "lightness"]) # Exile takes on new qualities
 

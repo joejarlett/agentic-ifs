@@ -143,9 +143,9 @@ class TestUnburdeningStateMachine:
 
         assert result.step == UnburdeningStep.RETRIEVAL
         assert result.exile_id == exile.id
-        assert result.next_step == UnburdeningStep.PURGING
+        assert result.next_step == UnburdeningStep.REPARENTING
         assert result.unblend_required is None
-        assert exile.state == ExileState.LEAKING
+        assert exile.state == ExileState.RETRIEVED
         assert machine.current_step == UnburdeningStep.RETRIEVAL
 
     # -------------------------------------------------------------------
@@ -187,10 +187,71 @@ class TestUnburdeningStateMachine:
         assert result.unblend_required == manager.id
 
     # -------------------------------------------------------------------
-    # 8. purge — after retrieve
+    # 8. reparent — after retrieve
     # -------------------------------------------------------------------
 
-    def test_purge_after_retrieve(
+    def test_reparent_after_retrieve(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """Normal flow: reparent after retrieve succeeds."""
+        machine.witness(exile.id)
+        machine.retrieve(exile.id)
+        result = machine.reparent(exile.id, "I needed someone to say I was safe")
+
+        assert result.step == UnburdeningStep.REPARENTING
+        assert result.exile_id == exile.id
+        assert result.next_step == UnburdeningStep.PURGING
+        assert result.unblend_required is None
+        assert "I needed someone to say I was safe" in result.notes
+        assert machine.current_step == UnburdeningStep.REPARENTING
+
+    # -------------------------------------------------------------------
+    # 9. reparent — requires retrieve first
+    # -------------------------------------------------------------------
+
+    def test_reparent_requires_retrieve_first(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """ValueError if called before retrieve."""
+        machine.witness(exile.id)
+        # Skip retrieve
+        with pytest.raises(ValueError, match="Cannot reparent before retrieval"):
+            machine.reparent(exile.id, "I needed safety")
+
+    # -------------------------------------------------------------------
+    # 10. reparent — requires self-energy
+    # -------------------------------------------------------------------
+
+    def test_reparent_requires_self_energy(
+        self,
+        populated_graph: ProtectionGraph,
+        exile: Exile,
+        manager: Manager,
+    ) -> None:
+        """Low self_energy during reparent returns unblend_required."""
+        ss = SelfSystem(self_energy=0.8)
+        machine = UnburdeningStateMachine(graph=populated_graph, self_system=ss)
+        machine.witness(exile.id)
+        machine.retrieve(exile.id)
+
+        # Blend to drop self_energy
+        ss.blend(BlendState(part_id=manager.id, blending_percentage=0.8))
+
+        result = machine.reparent(exile.id, "I needed comfort")
+
+        assert result.step == UnburdeningStep.REPARENTING
+        assert result.next_step is None
+        assert result.unblend_required == manager.id
+
+    # -------------------------------------------------------------------
+    # 11. purge — after reparent
+    # -------------------------------------------------------------------
+
+    def test_purge_after_reparent(
         self,
         machine: UnburdeningStateMachine,
         exile: Exile,
@@ -198,6 +259,7 @@ class TestUnburdeningStateMachine:
         """Purge sets burden to None and emotional_charge to 0.1."""
         machine.witness(exile.id)
         machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed protection")
         result = machine.purge(exile.id, UnburdeningElement.WATER)
 
         assert result.step == UnburdeningStep.PURGING
@@ -208,22 +270,23 @@ class TestUnburdeningStateMachine:
         assert "water" in result.notes
 
     # -------------------------------------------------------------------
-    # 9. purge — requires retrieve first
+    # 12. purge — requires reparent first
     # -------------------------------------------------------------------
 
-    def test_purge_requires_retrieve_first(
+    def test_purge_requires_reparent_first(
         self,
         machine: UnburdeningStateMachine,
         exile: Exile,
     ) -> None:
-        """ValueError if called before retrieve."""
+        """ValueError if called before reparent."""
         machine.witness(exile.id)
-        # Skip retrieve
-        with pytest.raises(ValueError, match="Cannot purge before retrieval"):
+        machine.retrieve(exile.id)
+        # Skip reparent
+        with pytest.raises(ValueError, match="Cannot purge before reparenting"):
             machine.purge(exile.id, UnburdeningElement.FIRE)
 
     # -------------------------------------------------------------------
-    # 10. purge — different elements work
+    # 13. purge — different elements work
     # -------------------------------------------------------------------
 
     def test_purge_element_choice(
@@ -241,12 +304,14 @@ class TestUnburdeningStateMachine:
                 emotional_charge=0.9,
             )
             exile.emotional_charge = 0.7
+            exile.state = ExileState.ISOLATED
 
             ss = SelfSystem(self_energy=0.8)
             machine = UnburdeningStateMachine(graph=populated_graph, self_system=ss)
 
             machine.witness(exile.id)
             machine.retrieve(exile.id)
+            machine.reparent(exile.id, "I needed safety")
             result = machine.purge(exile.id, element)
 
             assert result.step == UnburdeningStep.PURGING
@@ -254,7 +319,7 @@ class TestUnburdeningStateMachine:
             assert exile.burden is None
 
     # -------------------------------------------------------------------
-    # 11. invite — after purge
+    # 14. invite — after purge
     # -------------------------------------------------------------------
 
     def test_invite_after_purge(
@@ -265,6 +330,7 @@ class TestUnburdeningStateMachine:
         """Invite sets invited_qualities and ExileState.UNBURDENED."""
         machine.witness(exile.id)
         machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed to be held")
         machine.purge(exile.id, UnburdeningElement.LIGHT)
 
         qualities = ["playfulness", "curiosity", "lightness"]
@@ -278,7 +344,7 @@ class TestUnburdeningStateMachine:
         assert machine.current_step == UnburdeningStep.COMPLETE
 
     # -------------------------------------------------------------------
-    # 12. invite — requires purge first
+    # 15. invite — requires purge first
     # -------------------------------------------------------------------
 
     def test_invite_requires_purge_first(
@@ -289,12 +355,13 @@ class TestUnburdeningStateMachine:
         """ValueError if called before purge."""
         machine.witness(exile.id)
         machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed comfort")
         # Skip purge
         with pytest.raises(ValueError, match="Cannot invite before purging"):
             machine.invite(exile.id, ["playfulness"])
 
     # -------------------------------------------------------------------
-    # 13. full pipeline
+    # 16. full pipeline (5 steps)
     # -------------------------------------------------------------------
 
     def test_full_pipeline(
@@ -302,7 +369,7 @@ class TestUnburdeningStateMachine:
         machine: UnburdeningStateMachine,
         exile: Exile,
     ) -> None:
-        """All 4 steps in sequence — verify final state."""
+        """All 5 steps in sequence — verify final state."""
         # Verify initial state
         assert exile.burden is not None
         assert exile.state == ExileState.ISOLATED
@@ -314,19 +381,23 @@ class TestUnburdeningStateMachine:
 
         # Step 2: Retrieve
         r2 = machine.retrieve(exile.id)
-        assert r2.next_step == UnburdeningStep.PURGING
-        assert exile.state == ExileState.LEAKING
+        assert r2.next_step == UnburdeningStep.REPARENTING
+        assert exile.state == ExileState.RETRIEVED
 
-        # Step 3: Purge
-        r3 = machine.purge(exile.id, UnburdeningElement.EARTH)
-        assert r3.next_step == UnburdeningStep.INVITATION
+        # Step 3: Reparent
+        r3 = machine.reparent(exile.id, "I needed someone to tell me I was enough")
+        assert r3.next_step == UnburdeningStep.PURGING
+
+        # Step 4: Purge
+        r4 = machine.purge(exile.id, UnburdeningElement.EARTH)
+        assert r4.next_step == UnburdeningStep.INVITATION
         assert exile.burden is None
         assert exile.emotional_charge == pytest.approx(0.1)
 
-        # Step 4: Invite
+        # Step 5: Invite
         qualities = ["safety", "joy", "playfulness"]
-        r4 = machine.invite(exile.id, qualities)
-        assert r4.next_step is None
+        r5 = machine.invite(exile.id, qualities)
+        assert r5.next_step is None
 
         # Final state verification
         assert exile.state == ExileState.UNBURDENED
@@ -336,7 +407,7 @@ class TestUnburdeningStateMachine:
         assert machine.current_step == UnburdeningStep.COMPLETE
 
     # -------------------------------------------------------------------
-    # 14. session log populated
+    # 17. session log populated
     # -------------------------------------------------------------------
 
     def test_session_log_populated(
@@ -347,6 +418,7 @@ class TestUnburdeningStateMachine:
         """All steps log events to the session log."""
         machine.witness(exile.id)
         machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed protection")
         machine.purge(exile.id, UnburdeningElement.FIRE)
         machine.invite(exile.id, ["curiosity"])
 
@@ -354,7 +426,7 @@ class TestUnburdeningStateMachine:
             entry for entry in machine.self_system.session_log
             if entry.event_type == "unburdening"
         ]
-        assert len(unburdening_entries) == 4
+        assert len(unburdening_entries) == 5
         assert all(
             entry.part_id == exile.id
             for entry in unburdening_entries
@@ -364,5 +436,72 @@ class TestUnburdeningStateMachine:
         descriptions = [e.description for e in unburdening_entries]
         assert "WITNESSING" in descriptions[0]
         assert "RETRIEVAL" in descriptions[1]
-        assert "PURGING" in descriptions[2]
-        assert "INVITATION" in descriptions[3]
+        assert "REPARENTING" in descriptions[2]
+        assert "PURGING" in descriptions[3]
+        assert "INVITATION" in descriptions[4]
+
+    # -------------------------------------------------------------------
+    # 18. exile_id consistency — cannot switch exile mid-pipeline
+    # -------------------------------------------------------------------
+
+    def test_cannot_switch_exile_mid_pipeline(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """ValueError if a different exile_id is passed after witnessing."""
+        machine.witness(exile.id)
+
+        other_exile = Exile(
+            narrative="A different exile",
+            age=4,
+            intent="Hold different pain",
+            burden=Burden(
+                burden_type=BurdenType.PERSONAL,
+                origin="Age 4",
+                content="I am alone",
+            ),
+        )
+        machine.graph.add_part(other_exile)
+
+        with pytest.raises(ValueError, match="Cannot switch Exile mid-pipeline"):
+            machine.retrieve(other_exile.id)
+
+    def test_cannot_switch_exile_at_reparent(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """ValueError if a different exile_id is passed at reparent."""
+        machine.witness(exile.id)
+        machine.retrieve(exile.id)
+
+        with pytest.raises(ValueError, match="Cannot switch Exile mid-pipeline"):
+            machine.reparent(uuid4(), "I needed safety")
+
+    def test_cannot_switch_exile_at_purge(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """ValueError if a different exile_id is passed at purge."""
+        machine.witness(exile.id)
+        machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed comfort")
+
+        with pytest.raises(ValueError, match="Cannot switch Exile mid-pipeline"):
+            machine.purge(uuid4(), UnburdeningElement.WATER)
+
+    def test_cannot_switch_exile_at_invite(
+        self,
+        machine: UnburdeningStateMachine,
+        exile: Exile,
+    ) -> None:
+        """ValueError if a different exile_id is passed at invite."""
+        machine.witness(exile.id)
+        machine.retrieve(exile.id)
+        machine.reparent(exile.id, "I needed comfort")
+        machine.purge(exile.id, UnburdeningElement.LIGHT)
+
+        with pytest.raises(ValueError, match="Cannot switch Exile mid-pipeline"):
+            machine.invite(uuid4(), ["playfulness"])

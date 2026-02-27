@@ -60,16 +60,24 @@ class FirefighterState(str, Enum):
 class ExileState(str, Enum):
     """State machine for Exile Parts.
 
-    IFS: Exiles are sequestered by Protectors. They can leak influence
-    passively, flood the system when protections fail, or be unburdened
-    through the therapeutic process (V2).
+    IFS: Exiles are sequestered by Protectors. Their state can change
+    through two distinct pathways:
 
-    ``ISOLATED`` → ``LEAKING`` → ``FLOODING`` → ``UNBURDENED``
+    **Pathological breakthrough** (defences fail):
+    ``ISOLATED`` → ``LEAKING`` → ``FLOODING``
+
+    **Therapeutic healing** (Self retrieves intentionally):
+    ``ISOLATED`` → ``RETRIEVED`` → ``UNBURDENED``
+
+    LEAKING and FLOODING are *uncontrolled* — Exile material breaks through
+    despite Protectors. RETRIEVED is *intentional* — Self goes back to the
+    trauma scene and brings the Exile forward into present safety.
     """
 
     ISOLATED = "isolated"
     LEAKING = "leaking"
     FLOODING = "flooding"
+    RETRIEVED = "retrieved"
     UNBURDENED = "unburdened"
 
 

@@ -22,6 +22,7 @@ Usage::
     # V2: unburdening
     session.witness(exile.id)
     session.retrieve(exile.id)
+    session.reparent(exile.id, "I needed someone to say I was safe")
     session.purge(exile.id, UnburdeningElement.WATER)
     session.invite(exile.id, ["playfulness", "lightness"])
 
@@ -224,16 +225,22 @@ class Session:
         """Unburdening Stage 2: Retrieve the Exile from the trauma scene."""
         return self._unburdening.retrieve(exile_id)
 
+    def reparent(
+        self, exile_id: UUID, what_was_needed: str,
+    ) -> UnburdeningResult:
+        """Unburdening Stage 3: Self gives the Exile what it needed."""
+        return self._unburdening.reparent(exile_id, what_was_needed)
+
     def purge(
         self, exile_id: UUID, element: UnburdeningElement,
     ) -> UnburdeningResult:
-        """Unburdening Stage 3: Release the burden via an element."""
+        """Unburdening Stage 4: Release the burden via an element."""
         return self._unburdening.purge(exile_id, element)
 
     def invite(
         self, exile_id: UUID, new_qualities: list[str],
     ) -> UnburdeningResult:
-        """Unburdening Stage 4: Exile takes on new qualities."""
+        """Unburdening Stage 5: Exile takes on new qualities."""
         return self._unburdening.invite(exile_id, new_qualities)
 
     # --- Dialogue delegates (V2) ---

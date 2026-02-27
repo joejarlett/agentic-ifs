@@ -7,7 +7,7 @@ Part. This is the core healing process in IFS therapy.
 The pipeline runs AFTER Protector work (the 6 Fs) has been completed —
 Protectors must give permission before the system can access the Exile.
 
-Stages: Witnessing → Retrieval → Purging → Invitation
+Stages: Witnessing → Retrieval → Reparenting → Purging → Invitation
 
 Each stage requires Self-energy above ``COMPASSION_THRESHOLD`` — the same
 gate that operates in the 6 Fs. If Self-energy drops (a Part blends),
@@ -35,16 +35,17 @@ from .self_system import LogEntry, SelfSystem
 class UnburdeningStep(str, Enum):
     """Stages of the unburdening pipeline.
 
-    IFS: Unburdening follows a four-stage ritual after Protectors have
+    IFS: Unburdening follows a five-stage ritual after Protectors have
     stepped back. Each stage deepens the relationship between Self and
     the Exile, culminating in the release of the Burden and the invitation
     of new qualities.
 
-    ``WITNESSING`` → ``RETRIEVAL`` → ``PURGING`` → ``INVITATION`` → ``COMPLETE``
+    ``WITNESSING`` → ``RETRIEVAL`` → ``REPARENTING`` → ``PURGING`` → ``INVITATION`` → ``COMPLETE``
     """
 
     WITNESSING = "witnessing"
     RETRIEVAL = "retrieval"
+    REPARENTING = "reparenting"
     PURGING = "purging"
     INVITATION = "invitation"
     COMPLETE = "complete"
@@ -58,7 +59,9 @@ class UnburdeningElement(str, Enum):
     visualises the burden being consumed by fire, washed away by water,
     blown away by wind, absorbed by earth, or dissolved by light.
 
-    The element is chosen by the Exile, not by Self or the facilitator.
+    In clinical IFS, the element is traditionally chosen by the Exile,
+    not by Self or the facilitator. In simulation, the researcher
+    represents the Exile's choice via the API.
     """
 
     FIRE = "fire"
@@ -101,21 +104,26 @@ class UnburdeningStateMachine:
 
     IFS: Unburdening is the core healing process in IFS. After Protectors
     have stepped back (via the 6 Fs), Self can access the Exile directly.
-    The four stages — Witnessing, Retrieval, Purging, Invitation — form
-    the ritual that releases the Burden and transforms the Exile.
+    The five stages — Witnessing, Retrieval, Reparenting, Purging,
+    Invitation — form the ritual that releases the Burden and transforms
+    the Exile.
 
     Each stage gates on ``self_energy > COMPASSION_THRESHOLD``. If a Part
     blends during unburdening (which is common — Protectors often panic
     when Exile material surfaces), the pipeline pauses until the
     interfering Part is unblended.
 
+    The pipeline enforces that all steps target the same Exile — you
+    cannot witness one Exile and then retrieve a different one.
+
     Usage::
 
         machine = UnburdeningStateMachine(graph, self_system)
         r1 = machine.witness(exile.id)
         r2 = machine.retrieve(exile.id)
-        r3 = machine.purge(exile.id, UnburdeningElement.WATER)
-        r4 = machine.invite(exile.id, ["playfulness", "lightness"])
+        r3 = machine.reparent(exile.id, "I needed someone to say I was safe")
+        r4 = machine.purge(exile.id, UnburdeningElement.WATER)
+        r5 = machine.invite(exile.id, ["playfulness", "lightness"])
     """
 
     def __init__(
@@ -137,6 +145,24 @@ class UnburdeningStateMachine:
     def target_exile_id(self) -> UUID | None:
         """The Exile currently being unburdened."""
         return self._target_exile_id
+
+    # -------------------------------------------------------------------
+    # Validation helpers
+    # -------------------------------------------------------------------
+
+    def _validate_exile_id(self, exile_id: UUID) -> None:
+        """Ensure subsequent steps target the same Exile that was witnessed.
+
+        Raises:
+            ValueError: If ``exile_id`` does not match the Exile that was
+                witnessed at the start of this pipeline.
+        """
+        if self._target_exile_id is not None and exile_id != self._target_exile_id:
+            raise ValueError(
+                f"Cannot switch Exile mid-pipeline — "
+                f"witnessing targeted {self._target_exile_id}, "
+                f"but {exile_id} was passed"
+            )
 
     # -------------------------------------------------------------------
     # Pipeline steps
@@ -226,21 +252,27 @@ class UnburdeningStateMachine:
         IFS: The Exile is stuck in the original time and place of the
         wounding. Retrieval means going back to that scene, taking the
         young Part by the hand, and bringing it into present safety.
-        The Exile is no longer isolated in the past — it is now accessible
-        to the system in the here-and-now.
+        The Exile is no longer isolated in the past — it is now present
+        with Self in the here-and-now.
 
-        After retrieval, the Exile's state moves to ``LEAKING`` — it is
-        now present and emotionally available, no longer quarantined.
+        After retrieval, the Exile's state moves to ``RETRIEVED`` — this
+        is an intentional, therapeutic state (Self brought the Exile
+        forward), distinct from ``LEAKING``/``FLOODING`` which are
+        pathological breakthrough states.
 
         Computational equivalent: Extract process from quarantine into
         active memory space.
 
         Raises:
             ValueError: If ``witness()`` has not been called first.
+            ValueError: If ``exile_id`` doesn't match the witnessed Exile.
         """
         # Step order enforcement
         if self._current_step != UnburdeningStep.WITNESSING:
             raise ValueError("Cannot retrieve before witnessing")
+
+        # Exile consistency check (Issue 4)
+        self._validate_exile_id(exile_id)
 
         # Self-energy gate
         if self.self_system.self_energy <= COMPASSION_THRESHOLD:
@@ -267,8 +299,8 @@ class UnburdeningStateMachine:
         part = self.graph.nodes[exile_id]
         assert isinstance(part, Exile)
 
-        # Move Exile out of isolation into present safety
-        part.state = ExileState.LEAKING
+        # Move Exile out of isolation into present safety (therapeutic state)
+        part.state = ExileState.RETRIEVED
 
         self._current_step = UnburdeningStep.RETRIEVAL
 
@@ -283,8 +315,89 @@ class UnburdeningStateMachine:
         return UnburdeningResult(
             step=UnburdeningStep.RETRIEVAL,
             exile_id=exile_id,
-            next_step=UnburdeningStep.PURGING,
+            next_step=UnburdeningStep.REPARENTING,
             notes="Exile retrieved from trauma scene — now accessible",
+        )
+
+    def reparent(
+        self,
+        exile_id: UUID,
+        what_was_needed: str,
+    ) -> UnburdeningResult:
+        """Stage 3: Reparenting — Self gives the Exile what it needed.
+
+        IFS: After retrieval, Self asks the Exile: "What did you need
+        back then that you didn't get?" The Exile expresses its unmet
+        need — comfort, protection, acknowledgement, safety — and Self
+        provides it. This is the relational repair that makes unburdening
+        meaningful rather than procedural.
+
+        Only after the Exile has received what it needed does the burden
+        become ready to release. Without this step, purging is mechanical.
+
+        Computational equivalent: Provide missing input data to a
+        quarantined process before attempting payload deletion.
+
+        Parameters
+        ----------
+        exile_id:
+            UUID of the Exile being reparented.
+        what_was_needed:
+            What Self provides to the Exile — a description of the
+            unmet need being fulfilled (e.g. "I needed someone to tell
+            me I was safe", "I needed to be held", "I needed protection").
+
+        Raises:
+            ValueError: If ``retrieve()`` has not been called first.
+            ValueError: If ``exile_id`` doesn't match the witnessed Exile.
+        """
+        # Step order enforcement
+        if self._current_step != UnburdeningStep.RETRIEVAL:
+            raise ValueError("Cannot reparent before retrieval")
+
+        # Exile consistency check
+        self._validate_exile_id(exile_id)
+
+        # Self-energy gate
+        if self.self_system.self_energy <= COMPASSION_THRESHOLD:
+            interfering = self._identify_most_blended()
+            self.self_system.session_log.append(
+                LogEntry(
+                    event_type="unburdening",
+                    description=(
+                        f"REPARENTING: Self-energy insufficient "
+                        f"({self.self_system.self_energy:.2f} <= {COMPASSION_THRESHOLD})"
+                        f" — unblend required"
+                    ),
+                    part_id=interfering,
+                )
+            )
+            return UnburdeningResult(
+                step=UnburdeningStep.REPARENTING,
+                exile_id=exile_id,
+                next_step=None,
+                unblend_required=interfering,
+                notes="Self-energy insufficient — another Part is blended",
+            )
+
+        self._current_step = UnburdeningStep.REPARENTING
+
+        self.self_system.session_log.append(
+            LogEntry(
+                event_type="unburdening",
+                description=(
+                    f"REPARENTING: Self provides what the Exile needed: "
+                    f"'{what_was_needed}'"
+                ),
+                part_id=exile_id,
+            )
+        )
+
+        return UnburdeningResult(
+            step=UnburdeningStep.REPARENTING,
+            exile_id=exile_id,
+            next_step=UnburdeningStep.PURGING,
+            notes=f"Reparenting: '{what_was_needed}'",
         )
 
     def purge(
@@ -292,7 +405,7 @@ class UnburdeningStateMachine:
         exile_id: UUID,
         element: UnburdeningElement,
     ) -> UnburdeningResult:
-        """Stage 3: Purging — the elemental release of the Burden.
+        """Stage 4: Purging — the elemental release of the Burden.
 
         IFS: The Exile chooses an element — fire, water, wind, earth, or
         light — to release the burden. The client visualises the burden
@@ -311,11 +424,15 @@ class UnburdeningStateMachine:
         activation intensity to residual.
 
         Raises:
-            ValueError: If ``retrieve()`` has not been called first.
+            ValueError: If ``reparent()`` has not been called first.
+            ValueError: If ``exile_id`` doesn't match the witnessed Exile.
         """
         # Step order enforcement
-        if self._current_step != UnburdeningStep.RETRIEVAL:
-            raise ValueError("Cannot purge before retrieval")
+        if self._current_step != UnburdeningStep.REPARENTING:
+            raise ValueError("Cannot purge before reparenting")
+
+        # Exile consistency check
+        self._validate_exile_id(exile_id)
 
         # Self-energy gate
         if self.self_system.self_energy <= COMPASSION_THRESHOLD:
@@ -371,7 +488,7 @@ class UnburdeningStateMachine:
         exile_id: UUID,
         new_qualities: list[str],
     ) -> UnburdeningResult:
-        """Stage 4: Invitation — the Exile takes on new qualities.
+        """Stage 5: Invitation — the Exile takes on new qualities.
 
         IFS: After the burden is released, there is an empty space where
         the burden used to be. The Exile is invited to choose new qualities
@@ -387,10 +504,14 @@ class UnburdeningStateMachine:
 
         Raises:
             ValueError: If ``purge()`` has not been called first.
+            ValueError: If ``exile_id`` doesn't match the witnessed Exile.
         """
         # Step order enforcement
         if self._current_step != UnburdeningStep.PURGING:
             raise ValueError("Cannot invite before purging")
+
+        # Exile consistency check
+        self._validate_exile_id(exile_id)
 
         # Self-energy gate
         if self.self_system.self_energy <= COMPASSION_THRESHOLD:

@@ -107,7 +107,7 @@ V1 ("Stabilization Release") covered **Protector work** — the 6 Fs, blending, 
 
 **V2 (complete):**
 - **8C Self-Energy Vector** — `SelfEnergyVector` model with per-quality occlusion; scalar `self_energy` is backward-compatible mean
-- **Unburdening Pipeline** — `UnburdeningStateMachine` (Witnessing → Retrieval → Purging → Invitation → Complete)
+- **Unburdening Pipeline** — `UnburdeningStateMachine` (Witnessing → Retrieval → Reparenting → Purging → Invitation → Complete)
 - **5 Ps Interaction Modifiers** — `FivePs` model tuning compassion threshold, trust increments, Self-energy checks
 - **LLM Part Dialogue** — `DialogueProvider` protocol + `PartDialogue` orchestrator; optional Gemini and Anthropic integrations
 - **Direct Access Mode** — therapist speaks directly to Part, bypassing Self-energy check
