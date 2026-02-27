@@ -196,8 +196,6 @@ gnkb documents download <documentId> path=spec/research/<filename>.md
 | `spec/research/IFSKit-Concept-Mapping.md` | `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
 | `spec/research/Ecosystem-Gaps-PsychAI.md` | `55b75e75` | Why this gap exists — ecosystem analysis confirming IFSKit as the missing piece |
 
-> Note: Documents uploaded via content have `title: "Untitled Document"` in gnkb — this is a platform limitation. Use the local filenames and IDs above as the canonical reference. All future research should use `gnkb research create` which sets titles correctly.
-
 **Research pattern for this project:**
 All new research questions (IFS theory, architecture decisions, open questions) should go into this collection, not the job-search Jobs collection.
 
