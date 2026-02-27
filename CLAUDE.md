@@ -190,11 +190,13 @@ gnkb documents download <documentId> path=spec/research/<filename>.md
 ```
 
 **Current documents in collection:**
-| Document | gnkb ID | Description |
+| Local file | gnkb ID | Note |
 |---|---|---|
-| IFSKit-Research.md | `b91ec8c2` | Architecture research — LangGraph rec, Sotala predecessor, name collision |
-| IFSKit-Concept-Mapping.md | `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
-| Ecosystem-Gaps-PsychAI.md | `55b75e75` | Why this gap exists — ecosystem analysis confirming IFSKit as the missing piece |
+| `spec/research/IFSKit-Research.md` | `b91ec8c2` | Architecture research — LangGraph rec, Sotala predecessor, name collision |
+| `spec/research/IFSKit-Concept-Mapping.md` | `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
+| `spec/research/Ecosystem-Gaps-PsychAI.md` | `55b75e75` | Why this gap exists — ecosystem analysis confirming IFSKit as the missing piece |
+
+> Note: Documents uploaded via content have `title: "Untitled Document"` in gnkb — this is a platform limitation. Use the local filenames and IDs above as the canonical reference. All future research should use `gnkb research create` which sets titles correctly.
 
 **Research pattern for this project:**
 All new research questions (IFS theory, architecture decisions, open questions) should go into this collection, not the job-search Jobs collection.
