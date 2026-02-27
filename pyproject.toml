@@ -29,6 +29,15 @@ dev = [
     "ruff",
     "mypy",
 ]
+notebook = [
+    "jupyter>=1.0",
+    "matplotlib>=3.7",
+    "networkx>=3.0",
+]
+demo = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
 
 [project.urls]
 Homepage = "https://github.com/joejarlett/agentic-ifs"

@@ -365,17 +365,17 @@ def export_parts_map(graph: ProtectionGraph) -> dict:
 
 ---
 
-## 12. Open Questions for Author Review
+## 12. Resolved Design Decisions
 
-These need Joe's input before implementation:
+These were resolved during V1 implementation (author review):
 
-1. **5 Ps placement** — Are the 5 Ps (Presence, Patience, Perspective, Persistence, Playfulness) V1 validation constraints on the facilitation context, or V2 API interaction modifiers?
+1. **5 Ps placement** — **Deferred to V2.** The 5 Ps (Presence, Patience, Perspective, Persistence, Playfulness) will be API interaction modifiers, not V1 validation constraints.
 
-2. **Self-energy initialisation** — What should the default `self_energy` scalar be at system start? 0.5 (neutral) or 1.0 (full Self, Parts not yet active)?
+2. **Self-energy initialisation** — **Default 0.3.** Two-variable model: `self_potential=1.0` (constant, the "Sun" — never damaged) + `self_energy=0.3` (dynamic, typical session start with Managers already running). Occlusion formula: `self_energy = self_potential * (1 - max_blend)`. Research basis: `spec/research/IFS-Self-Energy-Baseline.md`.
 
-3. **Polarization detection** — Should the library auto-detect polarization from the escalation pattern, or require explicit declaration of polarized pairs?
+3. **Polarization detection** — **Explicit declaration only in V1.** Users declare `PolarizationEdge` manually. Auto-detection from escalation patterns is V2 scope.
 
-4. **Session concept** — Should V1 have an explicit `Session` object wrapping a `ProtectionGraph` + `SelfSystem` + `TrailheadLog`, or keep these composable without a session wrapper?
+4. **Session concept** — **Both.** Composable core + thin `Session` facade. The core components (`ProtectionGraph`, `SelfSystem`, `TrailheadLog`, `SixFsStateMachine`) are independently usable. `Session` is a convenience wrapper that delegates to them — not a different implementation.
 
 ---
 

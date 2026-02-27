@@ -69,21 +69,37 @@ IPart (Abstract Base)
 | 6Fs workflow | Sequential State Machine (the "game loop") |
 | Parts Map | AdjacencyMatrix / Force-directed graph JSON |
 
+### Key Architectural Decisions (V1)
+
+| Decision | Resolution |
+|---|---|
+| Session design | Composable core + thin `Session` facade that delegates |
+| SelfSystem model | Two fields: `self_potential=1.0` (constant) + `self_energy=0.3` (dynamic) |
+| Self-energy default | 0.3 — typical person arriving at session with Managers running |
+| Occlusion formula | `self_energy = self_potential * (1 - max_blend)` |
+| Polarization | Explicit `PolarizationEdge` declaration only. Auto-detect is V2 |
+| Strategy types | `list[str]` for triggers, strategies, behaviors. LLM-friendly |
+| Pydantic serialisation | `PartUnion` discriminated union via `part_type: Literal[...]` on each subclass |
+| Blend/unblend location | Instance methods on `SelfSystem` only — not duplicated in `dynamics.py` |
+| Timestamps | `datetime.now(timezone.utc)` everywhere (not deprecated `utcnow`) |
+
 ---
 
-## V1 Scope — "Stabilization Release"
+## V1 Status — "Stabilization Release"
+
+**Status: V1 implemented.** All modules, tests, and verification passing (96 tests, mypy clean, ruff clean).
 
 V1 focuses on **Protector work** (Managers and Firefighters). This is the stable foundation; Exile/unburdening work is V2.
 
 **V1 includes:**
-- `Part`, `Manager`, `Firefighter`, `Exile` classes with full data structures
-- `Self` as a scalar `SelfEnergy` float (not full 8C vector — that's V2)
+- `IPart`, `Manager`, `Firefighter`, `Exile` classes with discriminated union
+- `SelfSystem` with two-variable Self model (potential + energy)
 - Protection graph: Protects/Polarized/Allied edges
 - **6 Fs as the core game loop** — sequential state machine
 - Blending mechanics: `BlendingPercentage` + `OcclusionMask`
-- Trailhead logging
-- Parts Map as JSON export (graph data only, not rendered visualization)
-- U-Turn as `FocusShift` meta-tag
+- Trailhead logging and FocusShift (U-Turn)
+- Parts Map as JSON export (graph data for D3.js, Gephi, Cytoscape)
+- `Session` convenience facade
 
 **V1 excludes (V2 scope):**
 - Unburdening pipeline (Witnessing → Retrieval → Purging → Invitation)
@@ -93,6 +109,7 @@ V1 focuses on **Protector work** (Managers and Firefighters). This is the stable
 - LLM simulation of Part dialogue
 - 8C Self-energy vector breakdown
 - 3D/visual Parts Map rendering
+- Auto-detect polarization
 
 ---
 
@@ -102,26 +119,33 @@ V1 focuses on **Protector work** (Managers and Firefighters). This is the stable
 agentic-ifs/
 ├── CLAUDE.md               # This file — agent instructions
 ├── LICENSE                 # MIT
-├── README.md               # Project overview (to be written)
-├── pyproject.toml          # Package config (to be written)
+├── README.md               # Project overview and quick start
+├── pyproject.toml          # Package config (pydantic, pytest, mypy, ruff)
 ├── spec/                   # Living specification documents
 │   ├── IFSKit-Spec.md      # Formal spec (master document)
 │   ├── v1-scope.md         # V1 detailed scope
 │   └── research/           # Raw research documents from gnkb
 │       ├── Ecosystem-Gaps-PsychAI.md
 │       ├── IFSKit-Research.md
-│       └── IFSKit-Concept-Mapping.md
+│       ├── IFSKit-Concept-Mapping.md
+│       └── IFS-Self-Energy-Baseline.md
 ├── src/
 │   └── agentic_ifs/
-│       ├── __init__.py
-│       ├── parts.py        # Part, Manager, Firefighter, Exile
-│       ├── self_system.py  # SelfSystem, SelfEnergy
-│       ├── graph.py        # ProtectionGraph, adjacency
-│       ├── dynamics.py     # Blending, Unblending, Polarization
-│       ├── workflow.py     # 6Fs state machine
-│       └── trailheads.py   # TrailheadLog
-├── tests/
-└── docs/
+│       ├── __init__.py     # Full public API surface with __all__
+│       ├── parts.py        # IPart, Manager, Firefighter, Exile, Burden, enums, PartUnion
+│       ├── self_system.py  # SelfSystem, BlendState, LogEntry (blend/unblend here)
+│       ├── graph.py        # ProtectionGraph, Edge, EdgeType, PolarizationEdge, to_json()
+│       ├── dynamics.py     # is_self_led(), self_preservation_ratio(), COMPASSION_THRESHOLD
+│       ├── workflow.py     # SixFsStateMachine, Trailhead, TrailheadLog, FocusShift
+│       └── session.py      # Session convenience facade
+└── tests/
+    ├── conftest.py         # Shared fixtures (manager, firefighter, exile, populated_graph)
+    ├── test_parts.py       # Part instantiation, enums, PartUnion round-trip
+    ├── test_self_system.py # Blend/unblend, recalculate, logging
+    ├── test_graph.py       # Graph operations, to_json, discriminated union
+    ├── test_dynamics.py    # is_self_led, self_preservation_ratio thresholds
+    ├── test_workflow.py    # 6 Fs happy path, feel_toward gate, TrailheadLog
+    └── test_session.py     # Session delegation, metrics, export
 ```
 
 ---
@@ -143,6 +167,10 @@ agentic-ifs/
 4. MIT licence
 5. All public API should have docstrings that explain both the computational and IFS-theoretical meaning
 6. Tests in `tests/` using pytest
+7. `PartUnion` discriminated union for `dict[UUID, PartUnion]` — Pydantic v2 requires `part_type: Literal[...]` on each subclass
+8. `blend()` / `unblend()` are instance methods on `SelfSystem` only — do not duplicate in `dynamics.py`
+9. Use `datetime.now(timezone.utc)` — not `datetime.utcnow()` (deprecated in 3.11+)
+10. `Exile.emotional_charge` = current activation; `Burden.emotional_charge` = stored intensity — keep docstrings clear
 
 ### For documentation agents
 
@@ -158,8 +186,6 @@ agentic-ifs/
 - **Philosophical and research use** — appropriate for researchers, therapists exploring the model, AI/psych intersection builders
 - **Framework-agnostic** — the core library should not require any specific agent framework
 - **Joe is the IFS authority** — if in doubt about theoretical fidelity, ask
-
----
 
 ---
 
@@ -195,6 +221,7 @@ gnkb documents download <documentId> path=spec/research/<filename>.md
 | `spec/research/IFSKit-Research.md` | `b91ec8c2` | Architecture research — LangGraph rec, Sotala predecessor, name collision |
 | `spec/research/IFSKit-Concept-Mapping.md` | `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
 | `spec/research/Ecosystem-Gaps-PsychAI.md` | `55b75e75` | Why this gap exists — ecosystem analysis confirming IFSKit as the missing piece |
+| `spec/research/IFS-Self-Energy-Baseline.md` | — | Self-energy baseline research — validates two-variable model, 0.3 default, crisis states |
 
 **Research pattern for this project:**
 All new research questions (IFS theory, architecture decisions, open questions) should go into this collection, not the job-search Jobs collection.
