@@ -9,8 +9,8 @@ from fastapi import APIRouter
 
 from agentic_ifs import Trailhead
 
-from demo.models import CreateTrailheadRequest
-from demo.store import get_session
+from api.models import CreateTrailheadRequest
+from api.store import get_session
 
 router = APIRouter(tags=["workflow"])
 

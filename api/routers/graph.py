@@ -10,8 +10,8 @@ from pydantic import TypeAdapter
 
 from agentic_ifs import Edge, PartUnion, PolarizationEdge
 
-from demo.models import AddEdgeRequest, AddPolarizationRequest
-from demo.store import get_session
+from api.models import AddEdgeRequest, AddPolarizationRequest
+from api.store import get_session
 
 router = APIRouter(tags=["graph"])
 

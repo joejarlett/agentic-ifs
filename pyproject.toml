@@ -33,13 +33,14 @@ notebook = [
     "jupyter>=1.0",
     "matplotlib>=3.7",
     "networkx>=3.0",
+    "python-dotenv>=1.0",
 ]
-demo = [
+api = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
 ]
 google = [
-    "google-generativeai>=0.8",
+    "google-genai>=1.0",
 ]
 anthropic = [
     "anthropic>=0.40",

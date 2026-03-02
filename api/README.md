@@ -1,4 +1,4 @@
-# agentic-ifs Demo API
+# agentic-ifs API
 
 Thin REST wrapper around the **agentic-ifs** library for frontend integration
 and interactive exploration. All state is held in-memory -- sessions are lost
@@ -12,16 +12,16 @@ exploration only.
 From the project root:
 
 ```bash
-pip install -e ".[demo]"
+pip install -e ".[api]"
 ```
 
-This installs `agentic-ifs` in editable mode along with demo dependencies
+This installs `agentic-ifs` in editable mode along with api dependencies
 (`fastapi`, `uvicorn`).
 
 ## Running
 
 ```bash
-uvicorn demo.app:app --reload --port 8000
+uvicorn api.app:app --reload --port 8000
 ```
 
 Interactive Swagger docs are available at **http://localhost:8000/docs**.
@@ -99,7 +99,7 @@ variable (comma-separated):
 
 ```bash
 CORS_ORIGINS="http://localhost:5173,http://localhost:3000,https://myapp.example.com" \
-  uvicorn demo.app:app --reload --port 8000
+  uvicorn api.app:app --reload --port 8000
 ```
 
 ## API endpoints
@@ -133,6 +133,6 @@ CORS_ORIGINS="http://localhost:5173,http://localhost:3000,https://myapp.example.
 
 ## Note
 
-This demo uses in-memory storage only. All sessions and their state are
-lost when the server restarts. This is intentional -- the demo is for
+This api uses in-memory storage only. All sessions and their state are
+lost when the server restarts. This is intentional -- the api is for
 development and exploration, not production use.

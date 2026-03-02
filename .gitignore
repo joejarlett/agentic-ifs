@@ -31,6 +31,9 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
+# Research docs (kept locally, not in public repo — stored in gnkb)
+spec/research/
+
 # Environment
 .env
 .env.local

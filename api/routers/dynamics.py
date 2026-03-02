@@ -9,8 +9,8 @@ from fastapi import APIRouter
 
 from agentic_ifs import BlendState
 
-from demo.models import BlendRequest, MetricsResponse
-from demo.store import get_session
+from api.models import BlendRequest, MetricsResponse
+from api.store import get_session
 
 router = APIRouter(tags=["dynamics"])
 

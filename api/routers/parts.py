@@ -10,7 +10,7 @@ from pydantic import TypeAdapter
 
 from agentic_ifs import PartUnion
 
-from demo.store import get_session
+from api.store import get_session
 
 router = APIRouter(tags=["parts"])
 

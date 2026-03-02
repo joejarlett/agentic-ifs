@@ -6,8 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Response
 
-from demo.models import CreateSessionRequest, SessionSummary
-from demo.store import create_session, delete_session, get_session, list_sessions
+from api.models import CreateSessionRequest, SessionSummary
+from api.store import create_session, delete_session, get_session, list_sessions
 
 router = APIRouter(tags=["sessions"])
 

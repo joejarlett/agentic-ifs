@@ -1,4 +1,4 @@
-"""Main FastAPI application for the agentic-ifs demo API.
+"""Main FastAPI application for the agentic-ifs API.
 
 A thin REST wrapper around the agentic-ifs library, designed for
 frontend integration, interactive exploration, and Swagger-based
@@ -13,14 +13,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from demo.routers import dynamics, export, graph, parts, sessions, workflow
+from api.routers import dynamics, export, graph, parts, sessions, workflow
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="agentic-ifs Demo API",
+    title="agentic-ifs API",
     description=(
         "REST wrapper around the **agentic-ifs** library — Internal Family "
         "Systems as multi-agent computational architecture.\n\n"
@@ -88,7 +88,7 @@ async def key_error_handler(request: Request, exc: KeyError) -> JSONResponse:
 def root() -> dict[str, str]:
     """Welcome endpoint with link to interactive docs."""
     return {
-        "message": "agentic-ifs Demo API",
+        "message": "agentic-ifs API",
         "docs": "/docs",
         "openapi": "/openapi.json",
     }

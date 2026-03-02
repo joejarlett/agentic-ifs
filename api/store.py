@@ -1,4 +1,4 @@
-"""In-memory session store for the demo API.
+"""In-memory session store for the API.
 
 Simple dict-based store keyed by UUID. No persistence — sessions are lost
 on server restart.

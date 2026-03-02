@@ -126,13 +126,13 @@ agentic-ifs/
 ├── README.md               # Project overview and quick start
 ├── pyproject.toml          # Package config (pydantic, pytest, mypy, ruff)
 ├── spec/                   # Living specification documents
-│   ├── IFSKit-Spec.md      # Formal spec (master document)
-│   ├── v1-scope.md         # V1 detailed scope
-│   └── research/           # Raw research documents from gnkb
-│       ├── Ecosystem-Gaps-PsychAI.md
-│       ├── IFSKit-Research.md
-│       ├── IFSKit-Concept-Mapping.md
-│       └── IFS-Self-Energy-Baseline.md
+│   └── IFSKit-Spec.md      # Formal spec (master document)
+├── api/                    # FastAPI REST wrapper
+│   ├── app.py              # Main application
+│   ├── models.py           # Request/response schemas
+│   ├── store.py            # In-memory session store
+│   └── routers/            # Endpoint routers
+├── notebooks/              # Jupyter notebooks (rendered on GitHub as docs)
 ├── src/
 │   └── agentic_ifs/
 │       ├── __init__.py     # Full public API surface with __all__
@@ -171,8 +171,7 @@ agentic-ifs/
 ### For spec agents
 
 1. The primary spec document lives at `spec/IFSKit-Spec.md` — that is the source of truth for what to build
-2. Raw research in `spec/research/` is background; the spec synthesises it
-3. When speccing, always ask: does this mapping feel true to IFS theory? The code must serve the psychology, not the other way around
+2. When speccing, always ask: does this mapping feel true to IFS theory? The code must serve the psychology, not the other way around
 4. Joe has trained in IFS — if something feels architecturally convenient but psychologically wrong, flag it
 
 ### For dev agents
@@ -230,20 +229,20 @@ gnkb research create collectionId="6fdf5f3b-e2b8-46e7-9813-1129c60cc0ad" prompt=
 gnkb research list collectionId="6fdf5f3b-e2b8-46e7-9813-1129c60cc0ad"
 
 # Download a completed research document
-gnkb documents download <documentId> path=spec/research/<filename>.md
+gnkb documents download <documentId> path=<filename>.md
 ```
 
-**Current documents in collection:**
-| Local file | gnkb ID | Note |
-|---|---|---|
-| `spec/research/IFSKit-Research.md` | `b91ec8c2` | Architecture research — LangGraph rec, Sotala predecessor, name collision |
-| `spec/research/IFSKit-Concept-Mapping.md` | `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
-| `spec/research/Ecosystem-Gaps-PsychAI.md` | `55b75e75` | Why this gap exists — ecosystem analysis confirming IFSKit as the missing piece |
-| `spec/research/IFS-Self-Energy-Baseline.md` | `35c1457b` | Self-energy baseline research — validates two-variable model, 0.3 default, crisis states |
+**Key documents in collection:**
+| gnkb ID | Note |
+|---|---|
+| `b91ec8c2` | Architecture research — LangGraph rec, Sotala predecessor, name collision |
+| `43022da5` | Full IFS concept → computational primitive mapping, V1/V2 split |
+| `55b75e75` | Ecosystem analysis confirming IFSKit as the missing piece |
+| `35c1457b` | Self-energy baseline research — validates two-variable model, 0.3 default, crisis states |
 
 **Research pattern for this project:**
-All new research questions (IFS theory, architecture decisions, open questions) should go into this collection, not the job-search Jobs collection.
+All new research questions (IFS theory, architecture decisions, open questions) should go into this collection.
 
 ---
 
-*Last updated: 2026-02-27*
+*Last updated: 2026-03-02*

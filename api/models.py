@@ -1,4 +1,4 @@
-"""Request and response Pydantic schemas for the demo API.
+"""Request and response Pydantic schemas for the API.
 
 Thin request wrappers. Library models (SixFsResult, BlendState, Edge, etc.)
 are returned directly from endpoints where possible.
